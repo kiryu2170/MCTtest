@@ -214,8 +214,8 @@
   .ing-row:last-child{ border-bottom:none; }
   .ing-row .amt{ font-weight:800; color:var(--forest); white-space:nowrap; margin-left:12px; }
   .step-row{ display:flex; gap:12px; padding:8px 0; font-size:14.5px; line-height:1.65; }
-  .step-row span:last-child, .recipe-note, .m-txt p, .ing-row span:first-child{
-    word-break:keep-all; overflow-wrap:anywhere; word-break:auto-phrase;
+  .step-row span:last-child, .recipe-note, .m-txt p, .m-txt h4, .ing-row span:first-child{
+    word-break:keep-all; overflow-wrap:anywhere;
   }
   .step-num{
     width:26px; height:26px; border-radius:50%; background:var(--gold); color:#fff;
@@ -400,7 +400,7 @@
           <h3>🍳 作り方</h3>
           <div id="s5steps"></div>
         </div>
-        <p class="recipe-note">※MCTオイルは<wbr>加熱しすぎると<wbr>煙が出やすいため、調理の最後にかけるか、非加熱の料理・ドリンクに<wbr>混ぜてご使用ください。<br>※一度に摂りすぎると<wbr>お腹がゆるくなる<wbr>ことがあります。初めての場合は<wbr>小さじ1程度からが<wbr>おすすめです。</p>
+        <p class="recipe-note">※MCTオイルは加熱しすぎると煙が出やすいため、調理の最後にかけるか、非加熱の料理・ドリンクに混ぜてご使用ください。<br>※一度に摂りすぎるとお腹がゆるくなることがあります。初めての場合は小さじ1程度からがおすすめです。</p>
       </div>
     </div>
     <div class="s3-footer">
@@ -480,6 +480,37 @@ const SE = {
 };
 function goHomeTap(){ SE.back(); goHome(); }
 
+/* ---- 日本語の文節折り返し ----
+   Intl.Segmenterで語を切り出し、文節のはじまり（漢字・カタカナ・英数の語頭）に
+   改行候補<wbr>を差し込む。改行位置は固定せず、画面幅に応じてブラウザが
+   いちばん収まりの良い候補を選ぶ。非対応ブラウザでは元のまま表示。 */
+const JA_SEG = (typeof Intl !== 'undefined' && Intl.Segmenter)
+  ? new Intl.Segmenter('ja', { granularity: 'word' }) : null;
+function phraseWrap(text){
+  if(!JA_SEG) return text;
+  return String(text).split(/(<[^>]+>)/).map(part => {
+    if(part.startsWith('<') || !part) return part;
+    let out = '', prev = '';
+    for(const { segment } of JA_SEG.segment(part)){
+      if(out && breakBefore(segment, prev)) out += '<wbr>';
+      out += segment;
+      prev = segment;
+    }
+    return out;
+  }).join('');
+}
+const JA_PARTICLE = /^(の|に|を|は|が|と|で|も|や|へ|から|まで|より|など|て|し|ば|たら|ので|のに|には|では|とは|でも|にも|か)$/;
+const JA_AUX = /^(ます|です|ました|でした|ません|ない|なかった|た|だ|う|よう|そう|らしい|たい|ください|こと|もの|とき|ところ|ため|とおり|ほう|くらい|ぐらい|ほど|だけ)$/;
+function breakBefore(seg, prev){
+  const first = seg[0];
+  if(/[（「『]/.test(first)) return true;                    /* 開き括弧の前は区切ってよい */
+  if(/[、。！？．，）」』・…※ー]/.test(first)) return false;  /* 句読点・閉じ括弧は前に付ける */
+  if(/[（「『]/.test(prev.slice(-1))) return false;           /* 開き括弧の直後では区切らない */
+  if(JA_PARTICLE.test(seg) || JA_AUX.test(seg)) return false; /* 助詞・助動詞は前の語に付ける */
+  /* それ以外の語は、助詞・句読点の直後だけを区切り候補にする（動詞や複合語の途中では切らない） */
+  return JA_PARTICLE.test(prev) || /[、。！？）」』・：]$/.test(prev);
+}
+
 const DATA = {
   A: {
     label: "朝食サポートタイプ", tag: "TYPE A", color:"#ee8a3f",
@@ -522,9 +553,9 @@ const RECIPES = {
         ["MCTオイル", "小さじ1（約5g）"]
       ],
       steps: [
-        "淹れたての<wbr>ホットコーヒーを<wbr>マグカップに用意します",
+        "淹れたてのホットコーヒーをマグカップに用意します",
         "バターとMCTオイルを加えます",
-        "ブレンダーや<wbr>ミルクフォーマーで<wbr>乳化するまで<wbr>しっかり混ぜ合わせます（白っぽく泡立つのが目安）"
+        "ブレンダーやミルクフォーマーで乳化するまでしっかり混ぜ合わせます（白っぽく泡立つのが目安）"
       ],
       effects: [
         { icon:"☀️", title:"朝のすっきりスタート", desc:"手軽にエネルギーを補給し、シャキッと一日を始めたい朝に" },
@@ -545,9 +576,9 @@ const RECIPES = {
         ["MCTオイル", "小さじ1（約5g）"]
       ],
       steps: [
-        "器に<wbr>ギリシャヨーグルトを<wbr>盛り付けます",
-        "カットした<wbr>フルーツとナッツを<wbr>トッピングします",
-        "全体に<wbr>MCTオイルとはちみつを<wbr>回しかけて完成です"
+        "器にギリシャヨーグルトを盛り付けます",
+        "カットしたフルーツとナッツをトッピングします",
+        "全体にMCTオイルとはちみつを回しかけて完成です"
       ],
       effects: [
         { icon:"🥣", title:"腹持ちしっかり", desc:"たんぱく質と良質な脂質を一緒に摂って満足感アップ" },
@@ -570,9 +601,9 @@ const RECIPES = {
         ["MCTオイル", "大さじ1（約15g）"]
       ],
       steps: [
-        "ブロッコリーを一口大に切り、小房に分けて<wbr>固めに茹で（または<wbr>レンジ加熱し）、水気を<wbr>しっかり切ります",
+        "ブロッコリーを一口大に切り、小房に分けて固めに茹で（またはレンジ加熱し）、水気をしっかり切ります",
         "ボウルに汁気を切ったツナ、塩、コショウ、しょうゆを入れて混ぜます",
-        "茹でたブロッコリーを加え、仕上げに<wbr>MCTオイルを回しかけて<wbr>全体をサッと和えます"
+        "茹でたブロッコリーを加え、仕上げにMCTオイルを回しかけて全体をサッと和えます"
       ],
       effects: [
         { icon:"🏋️", title:"ボディメイクの味方", desc:"高タンパクな食材と効率的なエネルギー源を同時に摂取" },
@@ -592,9 +623,9 @@ const RECIPES = {
         ["MCTオイル", "小さじ1（約5g）"]
       ],
       steps: [
-        "ミキサー（またはシェイカー）に<wbr>水または豆乳と<wbr>プロテインを入れます",
-        "冷凍ミックスベリーと<wbr>MCTオイルを加えます",
-        "なめらかになるまで<wbr>ミキサーにかけます（シェイカーの場合は<wbr>しっかり振ります）"
+        "ミキサー（またはシェイカー）に水または豆乳とプロテインを入れます",
+        "冷凍ミックスベリーとMCTオイルを加えます",
+        "なめらかになるまでミキサーにかけます（シェイカーの場合はしっかり振ります）"
       ],
       effects: [
         { icon:"⚡", title:"素早い補給", desc:"運動前後の栄養補給を素早くスムーズに" },
@@ -619,8 +650,8 @@ const RECIPES = {
       ],
       steps: [
         "鍋に玉ねぎ、トマト缶、水、コンソメを入れて中火にかけます",
-        "一煮立ちしたら弱火にし、玉ねぎが柔らかくなるまで<wbr>約10分煮込みます",
-        "塩・コショウで<wbr>味を調えて器に盛り、食べる直前に<wbr>MCTオイルを回しかけます"
+        "一煮立ちしたら弱火にし、玉ねぎが柔らかくなるまで約10分煮込みます",
+        "塩・コショウで味を調えて器に盛り、食べる直前にMCTオイルを回しかけます"
       ],
       effects: [
         { icon:"🍅", title:"日々の元気維持", desc:"温かいスープで体をやさしくいたわりエネルギーをチャージ" },
@@ -641,7 +672,7 @@ const RECIPES = {
         ["氷", "適量"]
       ],
       steps: [
-        "グラスにはちみつ、レモン果汁、MCTオイルを入れ、よく<wbr>混ぜ合わせます",
+        "グラスにはちみつ、レモン果汁、MCTオイルを入れ、よく混ぜ合わせます",
         "氷を加え、炭酸水を優しく注ぎます",
         "底から軽く混ぜ合わせて完成です"
       ],
@@ -684,7 +715,7 @@ function showType(key){
     el.innerHTML = `<div class="photo-frame"><img src="${it.photo}" alt=""><div class="cap-overlay">${it.cap}</div></div>`;
     row.appendChild(el);
   });
-  document.getElementById('s3comment').innerHTML = d.comment;
+  document.getElementById('s3comment').innerHTML = phraseWrap(d.comment);
   activate('s3');
 }
 
@@ -721,9 +752,9 @@ function showRecipe(i){
   document.getElementById('s5meta').innerHTML =
     r.meta.map(m => `<span class="meta-chip">${m}</span>`).join('');
   document.getElementById('s5ings').innerHTML =
-    r.ings.map(([name, amt]) => `<div class="ing-row"><span>${name}</span><span class="amt">${amt}</span></div>`).join('');
+    r.ings.map(([name, amt]) => `<div class="ing-row"><span>${phraseWrap(name)}</span><span class="amt">${amt}</span></div>`).join('');
   document.getElementById('s5steps').innerHTML =
-    r.steps.map((s, n) => `<div class="step-row"><span class="step-num">${n+1}</span><span>${s}</span></div>`).join('');
+    r.steps.map((s, n) => `<div class="step-row"><span class="step-num">${n+1}</span><span>${phraseWrap(s)}</span></div>`).join('');
   activate('s5');
 }
 function backToRecipes(){ SE.back(); activate('s3r'); }
@@ -737,7 +768,7 @@ function showEffect(){
   chip.textContent = r.name;
   chip.style.background = d.color;
   document.getElementById('s6effects').innerHTML =
-    r.effects.map(e => `<div class="merit"><span class="m-icon">${e.icon}</span><div class="m-txt"><h4>${e.title}</h4><p>${e.desc}</p></div></div>`).join('');
+    r.effects.map(e => `<div class="merit"><span class="m-icon">${e.icon}</span><div class="m-txt"><h4>${phraseWrap(e.title)}</h4><p>${phraseWrap(e.desc)}</p></div></div>`).join('');
   activate('s6');
 }
 
@@ -760,6 +791,10 @@ function resetIdle(){
 document.addEventListener('touchstart', resetIdle);
 document.addEventListener('click', resetIdle);
 resetIdle();
+
+/* 固定文言にも文節の改行候補を差し込む */
+document.querySelectorAll('.recipe-note, .s4-staff, #s4 .m-txt p, #s4 .m-txt h4')
+  .forEach(el => { el.innerHTML = phraseWrap(el.innerHTML); });
 </script>
 </body>
 </html>
